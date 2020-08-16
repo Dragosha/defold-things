@@ -1,0 +1,27 @@
+[bootstrap]
+main_collection = /src/example.collectionc
+render = /render/3drender.renderc
+
+[script]
+shared_state = 1
+
+[display]
+width = 1280
+height = 720
+
+[android]
+input_method = HiddenInputField
+
+[project]
+title = 3d-tilemap
+dependencies = https://github.com/rgrams/rendercam/archive/master.zip
+
+[physics]
+gravity_y = -500.0
+debug = 0
+scale = 0.1
+
+[graphics]
+default_texture_min_filter = nearest
+default_texture_mag_filter = nearest
+

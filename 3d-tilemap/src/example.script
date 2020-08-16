@@ -1,0 +1,115 @@
+-- Links lua modules.
+local rendercam = require "rendercam.rendercam"
+local mtool = require "src.mtool"
+
+local function create_dummy(x, y)
+	local id = factory.create("#enemyfactory", vmath.vector3(x, y, 1), nil, nil, vmath.vector3(1, 1, 1))  
+	go.set_parent(id, "level")
+end
+
+
+function init(self)
+	local options = {
+		tilemap = "level#level", -- Tilemap URL.
+		layer = "layer1", -- Tilemap layer name.
+		w = 16, -- Horizontal number of tiles in tileset (texture atlas).
+		h = 16, -- Vertical number of tiles in tileset (texture atlas).
+		tilesize = 16, -- Size of tile in pixels (it will be use as scale factor when a script generates quads).
+		
+		-- Note: The same image that using as tilesource image we are using as a texture for generated mesh.
+		-- Each tile in tilemap layer will represented as box.
+		-- 
+		-- Each box contains 6 edges (faces). We can replacement their textures by setting tile number for each edge.
+		-- '1' is front edge, '2' - top, etc.
+		--    [2]
+		-- [4][1][5][6]
+		--    [3]
+		-- For example we want see a mixed grass tile (N) on front edge and pure green tile (M) on top edge.
+		-- So, mapping it as: [N] = {N, M, N, N, N, N}
+		-- 
+		
+		tile_info = {
+			[2] = {2, 18, 34, 1, 1, 1},
+			[3] = {3, 19, 35, 1, 1, 1},
+			[4] = {4, 20, 36, 1, 1, 1},
+			[6] = {6, 19, 35, 1, 1, 1},
+			[51] = {51, 49, 49, 49, 49, 49},
+			[53] = {53, 49, 49, 49, 49, 49},
+		},
+
+		-- You also can setup function 'tile_info_fn' for dynamic setting tile number. It may useful for generating levels in runtime.
+		-- tile_info_fn = function(tileno, x, y)
+		--  	if tileno == 1 then return {1, 4, 1, 1, 1, 1} end
+		-- end
+
+		optimize = false, -- If 'true' a script will culling the hidden by neighbors faces (edges 2,3,4,5).
+		optimize_back = false -- If 'true' a script will culling back face (6) for all tiles.
+
+		-- Also you may setup a texture atlas and setup for some tile numbers UV coordinates directly way.
+		-- It's optionaly and made for further commits.
+		-- All units are in pixels. Top-left corner is 0,0.
+
+		-- For example:
+		-- texture = {
+		-- 	width = 512,
+		-- 	height = 512,
+		-- 	[2] = {x = 128, y = 0, w = 128, h = 256},
+		-- }
+	}
+	-- Do magic:
+	self.grid = mtool.create_mesh_from_tilemap("go#mesh", options)
+
+	-- Disable origin tilemap.
+	msg.post(options.tilemap, "disable")
+
+	-- Setup the light source coordinates ('light' is a vertex shader constant, see assets/material/mesh...).
+	local gl = go.get_position("light")
+	go.set("go#mesh", "light", vmath.vector4(gl.x, gl.y, gl.z, 1))
+
+	go.animate("light", "position.x", go.PLAYBACK_LOOP_PINGPONG, 500, go.EASING_INOUTQUAD, 6)
+
+	-- Create dummies.
+	for i = 1, 10 do
+		create_dummy(math.random(-100, 100), 150)
+	end
+
+	-- Setup default background color.
+	msg.post("@render:", "clear_color", {color = vmath.vector4(0.15, 0.15, 0.18, 0)})
+end
+
+function update(self, dt)
+	local gl = go.get_position("light")
+	go.set("go#mesh", "light", vmath.vector4(gl.x, gl.y, gl.z, 1))
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("collision_response") then
+		if message.own_group == hash("danger") then
+			go.delete(message.other_id)
+		end
+
+	elseif message_id == hash("click") then
+		-- A 'click' message goes from controller.script
+		-- Converting screen to world coordinates.
+		local p = rendercam.screen_to_world_plane(message.screen_x, message.screen_y, vmath.vector3(0, 0, 1), go.get_position("go"))
+		local x = self.grid.world_to_map_X(p.x)
+		local y = self.grid.world_to_map_Y(p.y)
+		print(x, y)
+		
+		self.map_cache = self.map_cache or {}
+		local key = x.."-"..y
+	
+		local result = mtool.coloring_quad(self.grid, x, y, self.map_cache[key] and vmath.vector4(1, 1, 1, 1) or vmath.vector4(2, 2, 0, 1))
+		if result then
+			if self.map_cache[key] then
+				self.map_cache[key] = nil
+			else
+				self.map_cache[key] = true
+			end
+		else
+			self.map_cache = {}
+			mtool.reset_color(self.grid)
+			create_dummy(p.x, p.y)
+		end
+	end
+end
