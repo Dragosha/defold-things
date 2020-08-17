@@ -25,3 +25,6 @@ scale = 0.1
 default_texture_min_filter = nearest
 default_texture_mag_filter = nearest
 
+[html5]
+cssfile = /builtins/manifests/web/dark_theme.css
+

@@ -1,7 +1,7 @@
 -----------------------------------------
 -- Utility script.
 -- Camera rotating controller.
--- Touch
+-- Touch handler.
 -----------------------------------------
 
 local rendercam = require 'rendercam.rendercam'

@@ -1,7 +1,8 @@
--- Links lua modules.
+-- Lua modules:
 local rendercam = require "rendercam.rendercam"
 local mtool = require "src.mtool"
 
+-- Create a dummy object.
 local function create_dummy(x, y)
 	local id = factory.create("#enemyfactory", vmath.vector3(x, y, 1), nil, nil, vmath.vector3(1, 1, 1))  
 	go.set_parent(id, "level")
@@ -96,9 +97,11 @@ function on_message(self, message_id, message, sender)
 		local y = self.grid.world_to_map_Y(p.y)
 		print(x, y)
 		
+		-- Remembering clicked coords.
 		self.map_cache = self.map_cache or {}
 		local key = x.."-"..y
 	
+		-- Coloring quads on click coords.
 		local result = mtool.coloring_quad(self.grid, x, y, self.map_cache[key] and vmath.vector4(1, 1, 1, 1) or vmath.vector4(2, 2, 0, 1))
 		if result then
 			if self.map_cache[key] then

@@ -208,18 +208,18 @@ function mtool.create_mesh_from_tilemap(mesh_url, options)
 	-- calculate numbers of vertices for creating a mesh buffer
 	local num_vertices = 6 * num_quads
 
-    -- create a new buffer, since the one in the resource doesn't have enough size
-    local new_buffer = buffer.create(num_vertices, {
-        { name = hash("position"), type = buffer.VALUE_TYPE_FLOAT32, count = 3 },
-        { name = hash("normal"), type = buffer.VALUE_TYPE_FLOAT32, count = 3 },
-        { name = hash("texcoord0"), type = buffer.VALUE_TYPE_FLOAT32, count = 2 },
-        { name = hash("color0"), type = buffer.VALUE_TYPE_FLOAT32, count = 4 }
-    })
-    
-    -- get streams
-    local stream_position = buffer.get_stream(new_buffer, "position")
-    local stream_normal = buffer.get_stream(new_buffer, "normal")
-    local stream_texcoord0 = buffer.get_stream(new_buffer, "texcoord0")
+	-- create a new buffer, since the one in the resource doesn't have enough size
+	local new_buffer = buffer.create(num_vertices, {
+		{ name = hash("position"), type = buffer.VALUE_TYPE_FLOAT32, count = 3 },
+		{ name = hash("normal"), type = buffer.VALUE_TYPE_FLOAT32, count = 3 },
+		{ name = hash("texcoord0"), type = buffer.VALUE_TYPE_FLOAT32, count = 2 },
+		{ name = hash("color0"), type = buffer.VALUE_TYPE_FLOAT32, count = 4 }
+	})
+	
+	-- get streams
+	local stream_position = buffer.get_stream(new_buffer, "position")
+	local stream_normal = buffer.get_stream(new_buffer, "normal")
+	local stream_texcoord0 = buffer.get_stream(new_buffer, "texcoord0")
 	local stream_color0 = buffer.get_stream(new_buffer, "color0")
 	
 	-- fill streams
@@ -233,27 +233,27 @@ function mtool.create_mesh_from_tilemap(mesh_url, options)
 	for i = 1, len do stream_normal[i] = normals[i] end
 
 	-- set buffers to resource (mesh)
-    resource.set_buffer(res, new_buffer)
+	resource.set_buffer(res, new_buffer)
 
-    -- save origin values
-    local obj={}
-    obj.cols = bw
+	-- save origin values
+	local obj={}
+	obj.cols = bw
 	obj.rows = bh
 	obj.tile_indices = tile_indices
 	obj.x_off = bx
 	obj.y_off = by
-    obj.mesh_url = mesh_url
+	obj.mesh_url = mesh_url
 	obj.num_vertices = num_vertices
 	obj.num_quads = num_quads
 	obj.cell_size = scale
 
-	-- Not sure why we can't use stream_color0, but for correct works with buffer values in runtime
-	-- we need to get buffers again.
+	-- Not sure why we can't use stream_color0, but for correct works with buffer values
+	-- in the runtime we need to get buffers again.
 	local res = go.get(mesh_url, "vertices")
 	local buf = resource.get_buffer(res)
 	local color0 = buffer.get_stream(buf, "color0")
 
-    obj.color0 = color0
+	obj.color0 = color0
 	obj.color0_origin = {}
 	local len = #color0
 	for i = 1, len do obj.color0_origin[i] = color0[i] end
@@ -261,7 +261,8 @@ function mtool.create_mesh_from_tilemap(mesh_url, options)
 	
 	---------------------------------------------------------------------------------
 	-- Utility methods.
-	
+	-- 
+	-- Returns indices table for quads on x, y. Or '-1' if no indices found or out of the range.
 	function obj.quad_index(x, y)
 		if x < obj.x_off or y < obj.y_off or x >= obj.x_off + obj.cols  or  y >= obj.y_off + obj.rows then
 			return -1
@@ -270,24 +271,31 @@ function mtool.create_mesh_from_tilemap(mesh_url, options)
 		return obj.tile_indices[index]
 	end
 
+	-- Convert world 'x' to tilemap coords.
 	function obj.world_to_map_X(value)
-		return math.floor(value / obj.cell_size) + 1 -- - obj.x_off
+		return math.floor(value / obj.cell_size) + 1
 	end
 	
+	-- Convert world 'y' to tilemap coords.
 	function obj.world_to_map_Y(value)
-		return math.floor(value / obj.cell_size) + 1 -- - obj.y_off
+		return math.floor(value / obj.cell_size) + 1
 	end
 
 	return obj
 end
 
 ---------------------------------------------------------------------------------
--- Set original colors to all verticies
+-- Set original colors to all verticies.
 function mtool.reset_color(mesh)
 	for i = 1, #mesh.color0 do 		mesh.color0[i] = mesh.color0_origin[i] end
 end
 
--- Coloring box
+-- Coloring quads.
+-- @table mesh object created mtool.create_mesh_from_tilemap()
+-- @param number x coord in tilemap
+-- @param number y coord in tilemap
+-- @param vector4 rgba
+-- Returns 'true' if found quads on x,y. Or 'false' if a mesh has no quads in these coords.
 function mtool.coloring_quad(mesh, x, y, rgba)
 
 	local color0 = mesh.color0
