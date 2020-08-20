@@ -9,7 +9,7 @@ Into 3D mesh:
 ![mesh](assets/docs/runtime.png)
 
 
-#Usage:
+## Usage:
 
 1. Copy ‘mtool.lua’ module to your project.
 2. Create a standard tilemap.
