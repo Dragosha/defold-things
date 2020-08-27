@@ -1,12 +1,6 @@
-# 3d-tilemap example
+# advanced-tilemap example
 
-Converting 2D tilemap:
-
-![tilemap](assets/docs/editor.png)
-
-Into 3D mesh:
-
-![mesh](assets/docs/runtime.png)
+under construction.
 
 
 ## Usage:
