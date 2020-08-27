@@ -1,0 +1,306 @@
+local M = {}
+
+local Z_OFFSET = 0.01
+local function shift(ids, direction)
+    local commands = {}
+    if type(ids) == 'table' then
+    else
+        ids = {ids}
+    end
+        
+    for _, id in pairs(ids) do
+        if editor.can_get(id, "position") then
+            local position = editor.get(id, "position")
+            position[3] = position[3] + direction*Z_OFFSET
+            table.insert(commands, {
+                action = "set",
+                node_id = id,
+                property = "position",
+                value = position
+            })
+        end
+    end
+    return commands
+end
+
+local function set_z_through_y(ids)
+    local commands = {}
+    if type(ids) == 'table' then
+    else
+        ids = {ids}
+    end
+        
+    for _, id in pairs(ids) do
+        if editor.can_get(id, "position") then
+            local position = editor.get(id, "position")
+            position[3] = -position[2]*0.001
+            table.insert(commands, {
+                action = "set",
+                node_id = id,
+                property = "position",
+                value = position
+            })
+        end
+    end
+    return commands
+end
+
+local function swap(ids)
+    local commands = {}
+    local num = #ids
+    if num > 1 then 
+        local a = ids[1]
+        local b = ids[2]
+        local a_position = editor.get(a, "position")
+        local b_position = editor.get(b, "position")
+        a_position[3], b_position[3] = b_position[3], a_position[3]
+            table.insert(commands, {
+                action = "set",
+                node_id = a,
+                property = "position",
+                value = a_position
+            })
+            table.insert(commands, {
+                action = "set",
+                node_id = b,
+                property = "position",
+                value = b_position
+            })
+    end
+    return commands
+end
+
+-- sort by y
+local function order(ids, reset)
+    local commands = {}
+    local temp = {}
+    
+    for _, id in pairs(ids) do
+        if editor.can_get(id, "position") then
+            local position = editor.get(id, "position")
+            table.insert(temp, {
+                id = id,
+                position = position
+            })
+        end
+    end
+    
+    table.sort(temp, function(a, b) return a.position[2] > b.position[2] end)
+
+    local index = 0
+    for _, node in pairs(temp) do
+        local position = node.position
+        if reset then
+            position[3] = index
+        else
+            position[3] = position[3] + index
+        end
+        index = index + Z_OFFSET
+
+        table.insert(commands, {
+            action = "set",
+            node_id = node.id,
+            property = "position",
+            value = position
+        })
+    end
+    return commands
+end
+
+local function active(opts)
+    for _, id in pairs(opts.selection) do
+        if not editor.can_set(id, "position") then
+            return false
+        end
+    end
+    return #opts.selection > 1
+end
+
+function M.get_commands()
+    return {
+        -- Set Z coord as -Y/1000, for many and for one object
+        {
+            label = "Z = -Y",
+            locations = {"Edit", "Outline"},
+            query = {
+                selection = {type = "outline",  cardinality = "many"}
+            },
+            active = active,
+            run = function(opts)
+                return set_z_through_y(opts.selection)
+            end
+        },
+        {
+            label = "Z = -Y",
+            locations = {"Edit", "Outline"},
+            query = {
+                selection = {type = "outline",  cardinality = "one"}
+            },
+            active = function(opts) 
+                local id = opts.selection
+                return editor.can_set(id, "position") 
+            end,
+            run = function(opts)
+                return set_z_through_y(opts.selection)
+            end
+        },
+        --  Sort objects by z, uses Y as comparison
+        {
+            label = "Z-order (sort by Y)",
+            locations = {"Edit", "Outline"},
+            query = {
+                selection = {type = "outline",  cardinality = "many"}
+            },
+            active = active,
+            run = function(opts)
+                return order(opts.selection, true)
+            end
+        },
+        -- Swap Z between two selected objects
+        {
+            label = "Swap Z",
+            locations = {"Edit", "Outline"},
+            query = {
+                selection = {type = "outline",  cardinality = "many"}
+            },
+            active = function(opts)
+                for _, id in pairs(opts.selection) do
+                    if not editor.can_set(id, "position") then
+                        return false
+                    end
+                end
+                return #opts.selection == 2
+            end,
+            run = function(opts)
+                return swap(opts.selection)
+            end
+        },
+        {
+            label = "Shift DOWN",
+            locations = {"Edit", "Outline"},
+            query = {
+                selection = {type = "outline",  cardinality = "many"}
+            },
+            active = active,
+            run = function(opts)
+                return shift(opts.selection, -1)
+            end
+        },
+        {
+            label = "Shift UP",
+            locations = {"Edit", "Outline"},
+            query = {
+                selection = {type = "outline",  cardinality = "many"}
+            },
+            active = active,
+            run = function(opts)
+                return shift(opts.selection, 1)
+            end
+        },
+        {
+            label = "DOWN",
+            locations = {"Edit", "Outline"},
+            query = {
+                selection = {type = "outline",  cardinality = "one"}
+            },
+            active = function(opts) 
+                local id = opts.selection
+                return editor.can_set(id, "position") 
+            end,
+            run = function(opts)
+                return shift(opts.selection, -1)
+            end
+        },
+        {
+            label = "UP",
+            locations = {"Edit", "Outline"},
+            query = {
+                selection = {type = "outline",  cardinality = "one"}
+            },
+            active = function(opts) 
+                local id = opts.selection
+                return editor.can_set(id, "position") 
+            end,
+            run = function(opts)
+                return shift(opts.selection, 1)
+            end
+        },
+        {
+            locations = {"Outline"},
+            label = "Reset Transform",
+            query = {selection = {
+                type = "outline", cardinality = "one"
+            }},
+            active = function(opts) 
+                local id = opts.selection
+                return editor.can_set(id, "position") 
+                or editor.can_set(id, "rotation") 
+                or editor.can_set(id, "scale")
+            end,
+            run = function(opts)
+                local id = opts.selection
+                local ret = {}
+                if editor.can_set(id, "position") then
+                    table.insert(ret, {
+                        action = "set", 
+                        node_id = id, 
+                        property = "position", 
+                        value = {0, 0, 0}
+                    })
+                end
+                if editor.can_set(id, "rotation") then
+                    table.insert(ret, {
+                        action = "set", 
+                        node_id = id, 
+                        property = "rotation", 
+                        value = {0, 0, 0}
+                    })
+                end
+                if editor.can_set(id, "scale") then
+                    table.insert(ret, {
+                        action = "set", 
+                        node_id = id, 
+                        property = "scale", 
+                        value = {1, 1, 1}
+                    })
+                end
+                return ret
+            end
+        },
+        -- Horizontal Flip
+        {
+            locations = {"Outline"},
+            label = "Horizontal flip",
+            query = {selection = {
+                type = "outline", cardinality = "one"
+            }},
+            active = function(opts) 
+                local id = opts.selection
+                return editor.can_set(id, "rotation")
+                
+            end,
+            run = function(opts)
+                local id = opts.selection
+                local ret = {}
+                if editor.can_set(id, "rotation") then
+                    local rotation = editor.get(id, "rotation")
+                    if rotation[2] == 180 then
+                        rotation[2] = 0
+                    elseif rotation[2] == 0 then
+                        rotation[2] = 180
+                    end
+
+                    table.insert(ret, {
+                        action = "set", 
+                        node_id = id, 
+                        property = "rotation", 
+                        value = rotation
+                    })
+                end
+                return ret
+            end
+        }
+    }
+end
+
+return M
