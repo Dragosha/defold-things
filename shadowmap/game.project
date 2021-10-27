@@ -1,0 +1,23 @@
+[bootstrap]
+main_collection = /main/main.collectionc
+render = /render/default.renderc
+
+[script]
+shared_state = 1
+
+[display]
+width = 1600
+height = 900
+vsync = 0
+samples = 2
+high_dpi = 1
+
+[project]
+title = shadowmap
+dependencies#0 = https://github.com/britzl/monarch/archive/refs/tags/3.4.3.zip
+
+[physics]
+type = 3D
+allow_dynamic_transforms = 0
+gravity_y = -30.0
+

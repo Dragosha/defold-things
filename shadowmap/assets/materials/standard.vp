@@ -1,0 +1,49 @@
+
+// Positions can be world or local space, since world and normal
+// matrices are identity for world vertex space materials.
+// If world vertex space is selected, you can remove the
+// normal matrix multiplication for optimal performance.
+
+attribute mediump vec4 position;
+attribute mediump vec2 texcoord0;
+attribute mediump vec3 normal;
+
+uniform mediump mat4 mtx_worldview;
+uniform mediump mat4 mtx_view;
+uniform mediump mat4 mtx_world;
+uniform mediump mat4 mtx_proj;
+uniform mediump mat4 mtx_normal;
+
+uniform mediump vec4 light;
+uniform mediump vec4 light2;
+uniform mediump vec4 mtx_light_mvp0;
+uniform mediump vec4 mtx_light_mvp1;
+uniform mediump vec4 mtx_light_mvp2;
+uniform mediump vec4 mtx_light_mvp3;
+
+varying mediump vec4 var_position;
+varying mediump vec4 var_position_world;
+varying mediump vec3 var_normal;
+varying mediump vec2 var_texcoord0;
+varying mediump vec4 var_texcoord0_shadow;
+varying mediump vec4 var_light;
+varying mediump vec4 var_light2;
+
+mat4 get_shadow_mat()
+{
+    return mat4(mtx_light_mvp0, mtx_light_mvp1, mtx_light_mvp2, mtx_light_mvp3);
+}
+
+void main()
+{
+    vec4 p               = mtx_worldview * vec4(position.xyz, 1.0);
+    var_light            = mtx_view * vec4(light.xyz, 1.0);
+    var_light2           = mtx_view * vec4(light2.xyz, 1.0);
+    var_position         = p;
+    var_position_world   = mtx_world * vec4(position.xyz, 1.0);
+    var_texcoord0        = texcoord0;
+    var_texcoord0_shadow = get_shadow_mat() * mtx_world * vec4(position.xyz, 1.0);
+    var_normal           = normalize((mtx_normal * vec4(normal, 0.0)).xyz);
+    gl_Position          = mtx_proj * p;
+}
+

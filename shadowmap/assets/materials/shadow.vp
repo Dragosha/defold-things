@@ -1,0 +1,9 @@
+attribute mediump vec4 position;
+attribute mediump vec3 normal;
+uniform mediump mat4   mtx_worldview;
+uniform mediump mat4   mtx_proj;
+void main()
+{
+	gl_Position = mtx_proj * mtx_worldview * vec4(position.xyz, 1.0);
+}
+

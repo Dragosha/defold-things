@@ -1,0 +1,108 @@
+
+-- Translates a matrix in-place
+local function translate_matrix(mat,pos)
+	mat.m03 = mat.m03 + pos.x
+	mat.m13 = mat.m13 + pos.y
+	mat.m23 = mat.m23 + pos.z
+	return mat
+end
+
+local function get_rotation_from_yaw_pitch(yaw,pitch)
+	return vmath.quat_rotation_x(math.rad(pitch)) * vmath.quat_rotation_y(math.rad(yaw))
+end
+
+-- Calculates a view matrix from euler degrees
+local function get_matrix_from_rot_zoom(quat,zoom)
+	local mat = vmath.matrix4_from_quat(quat)
+	return translate_matrix(mat,vmath.vector3(0,0,-zoom))
+end
+
+local light     = vmath.vector4()
+local light_pos = vmath.vector3()
+local function get_light(self)
+	local inv_light = vmath.inv(self.light_transform)
+	light.x = inv_light.m03
+	light.y = inv_light.m13
+	light.z = inv_light.m23
+	light.w = 1
+	light_pos.x = light.x
+	light_pos.y = light.y
+	light_pos.z = light.z
+	return light
+end
+
+local function set_light(self)
+	go.set_position(light_pos, "/light")
+end
+
+function init(self)
+	self.views    = {}
+	self.views[1] = { x = 0, y = 0, w = 1, h = 1, transform = vmath.matrix4() }
+
+	self.yaw   = 0
+	self.pitch = 45
+	self.zoom  = 40
+	self.time  = 0
+
+	self.light_yaw       = 60
+	self.light_pitch     = 45
+	self.light_zoom      = 20
+	self.light_rotation  = get_rotation_from_yaw_pitch(self.light_yaw,self.light_pitch)
+	-- self.light_vector    = vmath.normalize(vmath.rotate(self.light_rotation, vmath.vector3(0,0,1)))
+	self.light_transform = get_matrix_from_rot_zoom(self.light_rotation,self.light_zoom)
+	get_light(self)
+
+	-- Use this for directional lights
+	local proj_w = 100
+	local proj_h = 100
+	local proj   = vmath.matrix4_orthographic(-proj_w/2, proj_w/2, -proj_h/2, proj_h/2, -100, 100)
+
+	-- If you want a perspective projection for the light, use something like this
+	-- Note: you need to adjust the bias value to match these settings.
+	-- self.light    = get_matrix_from_yaw_pitch_zoom(50,50,30)
+	-- local proj_w = 960
+	-- local proj_h = 640
+	-- local proj = vmath.matrix4_perspective(45, proj_w / proj_h, 0.1, 100)
+
+	msg.post(".", "acquire_input_focus")
+	msg.post("@render:", "set_light_projection", { projection = proj })
+	msg.post("@render:", "set_light_transform",  { transform  = self.light_transform, light = light})
+	msg.post("@render:", "set_near_far",         { near = 1, far = 100 })
+
+	set_light(self)
+end
+
+function update(self, dt)
+	self.time = self.time + dt
+	
+	-- Update camera
+	self.views[1].transform = get_matrix_from_rot_zoom(get_rotation_from_yaw_pitch(self.yaw,self.pitch), self.zoom)
+	msg.post("@render:", "set_view", self.views)
+
+	-- Update scene
+	local pos        = go.get_position("/shadow_sphere")
+	local pos_offset = 5
+	pos.x = math.sin(self.time) * pos_offset
+	pos.z = math.cos(self.time) * pos_offset
+	go.set_position(pos,"/shadow_sphere")
+end
+
+function on_input(self, action_id, action)
+	if action_id == hash("M_MID") and action.released then
+		factory.create("#factory", vmath.vector3(math.random(-5, 5), math.random(10, 15), math.random(-5, 5)))
+	end
+	if action_id == hash("touch") then
+		self.did_input = true
+		self.yaw       = self.yaw + action.dx
+		self.pitch     = self.pitch - action.dy
+	elseif action_id == hash("M_RIGHT") then
+		-- self.zoom      = self.zoom + action.dy * 0.1
+		self.light_pitch = self.light_pitch + action.dy * 0.1
+		self.light_yaw = self.light_yaw + action.dx * 0.1
+		self.light_rotation  = get_rotation_from_yaw_pitch(self.light_yaw,self.light_pitch)
+		self.light_transform = get_matrix_from_rot_zoom(self.light_rotation,self.light_zoom)
+		get_light(self)
+		msg.post("@render:", "set_light_transform",  { transform  = self.light_transform, light = light })
+		set_light(self)
+	end
+end

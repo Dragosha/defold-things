@@ -1,0 +1,174 @@
+local function create_depth_buffer(w,h)
+    local color_params = {
+        format     = render.FORMAT_RGBA,
+        width      = w,
+        height     = h,
+        min_filter = render.FILTER_NEAREST,
+        mag_filter = render.FILTER_NEAREST,
+        u_wrap     = render.WRAP_CLAMP_TO_EDGE,
+        v_wrap     = render.WRAP_CLAMP_TO_EDGE }
+        
+    local depth_params = { 
+        format        = render.FORMAT_DEPTH,
+        width         = w,
+        height        = h,
+        min_filter    = render.FILTER_NEAREST,
+        mag_filter    = render.FILTER_NEAREST,
+        u_wrap        = render.WRAP_CLAMP_TO_EDGE,
+        v_wrap        = render.WRAP_CLAMP_TO_EDGE }
+
+    return render.render_target("shadow_buffer", {[render.BUFFER_COLOR_BIT] = color_params, [render.BUFFER_DEPTH_BIT] = depth_params })
+end
+
+function init(self)
+
+    self.shadow_pred       = render.predicate({"shad"})
+    self.shadow_debug_pred = render.predicate({"shadow_debug"})
+    self.model_pred        = render.predicate({"model"})
+    self.model_pred2       = render.predicate({"model2"})
+    self.tile_pred         = render.predicate({"tile"})
+    self.gui_pred          = render.predicate({"gui"})
+    self.text_pred         = render.predicate({"text"})
+    self.particle_pred     = render.predicate({"particle"})
+
+    self.clear_color = vmath.vector4(0.4, 0.4, 0.5, 0.4)
+    self.view        = vmath.matrix4()
+
+    self.near = -1
+    self.far  = 1
+    self.zoom = 1
+
+    self.views = {}
+    self.proj = vmath.matrix4()
+
+    self.light_buffer          = create_depth_buffer(4096,4096)
+    self.light_transform       = vmath.matrix4()
+    self.light_projection      = vmath.matrix4()
+    self.light_constant_buffer = render.constant_buffer()
+
+    self.bias_matrix    = vmath.matrix4()
+    self.bias_matrix.c0 = vmath.vector4(0.5, 0.0, 0.0, 0.0)
+    self.bias_matrix.c1 = vmath.vector4(0.0, 0.5, 0.0, 0.0)
+    self.bias_matrix.c2 = vmath.vector4(0.0, 0.0, 0.5, 0.0)
+    self.bias_matrix.c3 = vmath.vector4(0.5, 0.5, 0.5, 1.0)
+end
+
+function render_view(self, view)    
+    local w = render.get_window_width()
+    local h = render.get_window_height()
+    
+    render.set_viewport(view.x * w, view.y * h, view.w * w, view.h * h)
+    render.set_view(view.transform)
+
+    render.enable_state(render.STATE_CULL_FACE)
+    -- render.set_cull_face(render.FACE_BACK)
+    render.enable_texture(1, self.light_buffer, render.BUFFER_COLOR_BIT)
+    render.draw(self.model_pred, self.light_constant_buffer)
+    render.draw(self.model_pred2, self.light_constant_buffer)
+    render.disable_texture(1)
+
+    render.disable_state(render.STATE_CULL_FACE)
+    render.draw(self.tile_pred)
+    render.draw(self.particle_pred)
+    render.draw_debug3d()
+end
+
+function render_gui(self)
+    -- render GUI
+    --
+    render.set_view(vmath.matrix4())
+    render.set_projection(vmath.matrix4_orthographic(0, render.get_window_width(), 0, render.get_window_height(), -1, 1))
+    render.set_viewport(0, 0, render.get_window_width(), render.get_window_height())
+
+    render.enable_state(render.STATE_STENCIL_TEST)
+    render.draw(self.gui_pred)
+    render.draw(self.text_pred)
+    render.disable_state(render.STATE_STENCIL_TEST)
+end
+
+function render_scene(self)
+    local w         = render.get_window_width()
+    local h         = render.get_window_height()
+    local proj      = vmath.matrix4_perspective(45, w/h, self.near, self.far)
+    local mtx_light = self.bias_matrix * self.light_projection * self.light_transform
+
+    self.proj = proj
+    self.light_constant_buffer.mtx_light_mvp0 = mtx_light.c0
+    self.light_constant_buffer.mtx_light_mvp1 = mtx_light.c1
+    self.light_constant_buffer.mtx_light_mvp2 = mtx_light.c2
+    self.light_constant_buffer.mtx_light_mvp3 = mtx_light.c3
+    self.light_constant_buffer.light = self.light or vmath.vector4()
+    self.light_constant_buffer.light2 = vmath.vector4(10, 2, 1, 0)
+    self.light_constant_buffer.color1 = vmath.vector4(1)
+    self.light_constant_buffer.color2 = vmath.vector4(2, 0, 0, 0)
+
+    self.light_constant_buffer.ambient = vmath.vector4(0.4, 0.4, 0.5, 0)
+    self.light_constant_buffer.fog_color = vmath.vector4(0.4, 0.4, 0.5, 0.6)
+    
+
+    render.set_projection(self.proj)
+    render.set_color_mask(true, true, true, true)
+    render.set_depth_mask(true)
+    render.clear({[render.BUFFER_COLOR_BIT] = self.clear_color, [render.BUFFER_DEPTH_BIT] = 1, [render.BUFFER_STENCIL_BIT] = 0})
+
+    render.enable_state(render.STATE_DEPTH_TEST)
+    render.set_depth_func(render.COMPARE_FUNC_LEQUAL)
+    render.disable_state(render.STATE_STENCIL_TEST)
+    render.enable_state(render.STATE_BLEND)
+    render.set_blend_func(render.BLEND_SRC_ALPHA, render.BLEND_ONE_MINUS_SRC_ALPHA)
+
+    for k, v in pairs(self.views) do
+        render_view(self,v)
+    end
+end
+
+function render_shadows(self)
+    local w = render.get_render_target_width(self.light_buffer, render.BUFFER_DEPTH_BIT)
+    local h = render.get_render_target_height(self.light_buffer, render.BUFFER_DEPTH_BIT)
+     
+    render.set_projection(self.light_projection)
+    render.set_view(self.light_transform)
+    render.set_viewport(0, 0, w, h)
+
+    render.set_depth_mask(true)
+    render.set_depth_func(render.COMPARE_FUNC_LEQUAL)
+    render.enable_state(render.STATE_DEPTH_TEST)
+    render.disable_state(render.STATE_BLEND)
+    render.disable_state(render.STATE_CULL_FACE)
+
+    -- This is something I would like to do to fix the "peter panning" issue,
+    -- but it doesn't really work. Need to flip the normal on the plane I guess.
+    -- render.set_cull_face(render.FACE_FRONT)
+    -- render.enable_state(render.STATE_CULL_FACE)
+
+    render.set_render_target(self.light_buffer, { transient = {render.BUFFER_DEPTH_BIT} })
+    render.clear({[render.BUFFER_COLOR_BIT] = vmath.vector4(0,0,0,1), [render.BUFFER_DEPTH_BIT] = 1})
+    render.enable_material("shadow")
+    render.draw(self.model_pred)
+    render.draw(self.model_pred2)
+    -- render.draw(self.tile_pred)
+    render.disable_material()
+    render.set_render_target(render.RENDER_TARGET_DEFAULT)
+end
+
+function update(self)
+    render_shadows(self)
+    render_scene(self)
+    render_gui(self)
+end
+
+function on_message(self, message_id, message)
+    if message_id == hash("clear_color") then
+        self.clear_color = message.color
+    elseif message_id == hash("set_light_transform") then
+        self.light_transform = message.transform
+        self.light = message.light
+    elseif message_id == hash("set_light_projection") then
+        self.light_projection = message.projection
+    elseif message_id == hash("set_view") then
+        self.views = message
+    elseif message_id == hash("set_near_far") then
+        self.near = message.near
+        self.far = message.far
+    end
+end

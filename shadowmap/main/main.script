@@ -1,0 +1,23 @@
+local monarch = require "monarch.monarch"
+
+function init(self)
+	msg.post("#", "post_init")
+end
+
+function final(self)
+end
+
+function update(self, dt)
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("post_init") then
+		monarch.show(hash("menu"), nil, nil, function() print("Menu show cb") end)
+	end
+end
+
+function on_input(self, action_id, action)
+end
+
+function on_reload(self)
+end

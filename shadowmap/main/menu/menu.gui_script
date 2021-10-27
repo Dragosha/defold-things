@@ -1,0 +1,28 @@
+local monarch = require "monarch.monarch"
+local si = require "main.helper.simple_input"
+
+function init(self)
+    print("menu gui")
+    si.acquire()
+    si.register("box", function() 
+        monarch.show(hash("scene"))
+    end)
+end
+
+function final(self)
+    si.unregister()
+    si.release()
+end
+
+function update(self, dt)
+end
+
+function on_message(self, message_id, message, sender)
+end
+
+function on_input(self, action_id, action)
+    si.on_input(self, action_id, action)
+end
+
+function on_reload(self)
+end
