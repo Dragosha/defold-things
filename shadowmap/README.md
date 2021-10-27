@@ -1,5 +1,7 @@
 ## Shadow mapping + fog + point light as second light source example
 
+![shadowmap](https://user-images.githubusercontent.com/842807/139085405-9986af4e-398c-4d52-ae67-ff3f9be8860f.jpg)
+
 [Html5 demo](https://dragosha.com/defold/shadowmap/)
 
 - Press and hold left mouse button to camera rorate.
