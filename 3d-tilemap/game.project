@@ -14,7 +14,7 @@ input_method = HiddenInputField
 
 [project]
 title = 3d-tilemap
-dependencies = https://github.com/rgrams/rendercam/archive/master.zip
+dependencies#0 = https://github.com/rgrams/rendercam/archive/master.zip
 
 [physics]
 gravity_y = -500.0

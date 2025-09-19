@@ -1,0 +1,31 @@
+{
+  :build {
+    :lint-code true
+    :texture-compression false
+  }
+  :code {
+    :find {
+      :case-sensitive false
+      :replacement "helper.broadcast"
+      :term "occlusion"
+      :whole-word false
+    }
+  }
+  :search-in-files {
+    :exts ""
+    :include-libraries false
+    :term "clamp"
+  }
+  :workflow {
+    :recent-files [
+      [
+        "/game.project"
+        :cljfx-form-view
+      ]
+      [
+        "/src/example.collection"
+        :scene
+      ]
+    ]
+  }
+}
