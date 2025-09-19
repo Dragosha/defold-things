@@ -64,3 +64,6 @@ Search for all the nearest cells with cost > 0 and <= max_cost
 		print(c.x, c.y, c.dist) 
 	end
 ```
+
+>[!TIP]
+> You can turn the diagonal passage on or off by switching the variable `astar.diagonals = true` (diagonals are enabled by default, i.e. true)
