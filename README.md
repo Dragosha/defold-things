@@ -4,4 +4,4 @@
  2. [Helpers](helpers/README.md) - Collections of simple but useful scripts.
  3. [Collection of editor scripts](editor-scripts/README.md)
  4. [Shadow mapping](shadowmap/)
- 5. [A* Path finding](a-star/)
+ 5. [A* Path finding](a-star/README.md)
