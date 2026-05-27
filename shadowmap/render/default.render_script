@@ -1,23 +1,23 @@
 local function create_depth_buffer(w,h)
     local color_params = {
-        format     = render.FORMAT_RGBA,
+        format     = graphics.TEXTURE_FORMAT_RGBA,
         width      = w,
         height     = h,
-        min_filter = render.FILTER_NEAREST,
-        mag_filter = render.FILTER_NEAREST,
-        u_wrap     = render.WRAP_CLAMP_TO_EDGE,
-        v_wrap     = render.WRAP_CLAMP_TO_EDGE }
+        min_filter = graphics.TEXTURE_FILTER_NEAREST,
+        mag_filter = graphics.TEXTURE_FILTER_NEAREST,
+        u_wrap     = graphics.TEXTURE_WRAP_CLAMP_TO_EDGE,
+        v_wrap     = graphics.TEXTURE_WRAP_CLAMP_TO_EDGE }
         
     local depth_params = { 
-        format        = render.FORMAT_DEPTH,
+        format        = graphics.TEXTURE_FORMAT_DEPTH,
         width         = w,
         height        = h,
-        min_filter    = render.FILTER_NEAREST,
-        mag_filter    = render.FILTER_NEAREST,
-        u_wrap        = render.WRAP_CLAMP_TO_EDGE,
-        v_wrap        = render.WRAP_CLAMP_TO_EDGE }
+        min_filter    = graphics.TEXTURE_FILTER_NEAREST,
+        mag_filter    = graphics.TEXTURE_FILTER_NEAREST,
+        u_wrap        = graphics.TEXTURE_WRAP_CLAMP_TO_EDGE,
+        v_wrap        = graphics.TEXTURE_WRAP_CLAMP_TO_EDGE }
 
-    return render.render_target("shadow_buffer", {[render.BUFFER_COLOR_BIT] = color_params, [render.BUFFER_DEPTH_BIT] = depth_params })
+    return render.render_target("shadow_buffer", {[graphics.BUFFER_TYPE_COLOR0_BIT] = color_params, [graphics.BUFFER_TYPE_DEPTH_BIT] = depth_params })
 end
 
 function init(self)
@@ -53,21 +53,21 @@ function init(self)
     self.bias_matrix.c3 = vmath.vector4(0.5, 0.5, 0.5, 1.0)
 end
 
-function render_view(self, view)    
+function render_view(self, view)
     local w = render.get_window_width()
     local h = render.get_window_height()
-    
+
     render.set_viewport(view.x * w, view.y * h, view.w * w, view.h * h)
     render.set_view(view.transform)
 
-    render.enable_state(render.STATE_CULL_FACE)
+    render.enable_state(graphics.STATE_CULL_FACE)
     -- render.set_cull_face(render.FACE_BACK)
-    render.enable_texture(1, self.light_buffer, render.BUFFER_COLOR_BIT)
+    render.enable_texture(1, self.light_buffer, graphics.BUFFER_TYPE_COLOR0_BIT)
     render.draw(self.model_pred, self.light_constant_buffer)
     render.draw(self.model_pred2, self.light_constant_buffer)
     render.disable_texture(1)
 
-    render.disable_state(render.STATE_CULL_FACE)
+    render.disable_state(graphics.STATE_CULL_FACE)
     render.draw(self.tile_pred)
     render.draw(self.particle_pred)
     render.draw_debug3d()
@@ -80,10 +80,10 @@ function render_gui(self)
     render.set_projection(vmath.matrix4_orthographic(0, render.get_window_width(), 0, render.get_window_height(), -1, 1))
     render.set_viewport(0, 0, render.get_window_width(), render.get_window_height())
 
-    render.enable_state(render.STATE_STENCIL_TEST)
+    render.enable_state(graphics.STATE_STENCIL_TEST)
     render.draw(self.gui_pred)
     render.draw(self.text_pred)
-    render.disable_state(render.STATE_STENCIL_TEST)
+    render.disable_state(graphics.STATE_STENCIL_TEST)
 end
 
 function render_scene(self)
@@ -104,18 +104,17 @@ function render_scene(self)
 
     self.light_constant_buffer.ambient = vmath.vector4(0.4, 0.4, 0.5, 0)
     self.light_constant_buffer.fog_color = vmath.vector4(0.4, 0.4, 0.5, 0.6)
-    
 
     render.set_projection(self.proj)
     render.set_color_mask(true, true, true, true)
     render.set_depth_mask(true)
-    render.clear({[render.BUFFER_COLOR_BIT] = self.clear_color, [render.BUFFER_DEPTH_BIT] = 1, [render.BUFFER_STENCIL_BIT] = 0})
+    render.clear({[graphics.BUFFER_TYPE_COLOR0_BIT] = self.clear_color, [graphics.BUFFER_TYPE_DEPTH_BIT] = 1, [graphics.BUFFER_TYPE_STENCIL_BIT] = 0})
 
-    render.enable_state(render.STATE_DEPTH_TEST)
-    render.set_depth_func(render.COMPARE_FUNC_LEQUAL)
-    render.disable_state(render.STATE_STENCIL_TEST)
-    render.enable_state(render.STATE_BLEND)
-    render.set_blend_func(render.BLEND_SRC_ALPHA, render.BLEND_ONE_MINUS_SRC_ALPHA)
+    render.enable_state(graphics.STATE_DEPTH_TEST)
+    render.set_depth_func(graphics.COMPARE_FUNC_LEQUAL)
+    render.disable_state(graphics.STATE_STENCIL_TEST)
+    render.enable_state( graphics.STATE_BLEND)
+    render.set_blend_func(graphics.BLEND_FACTOR_SRC_ALPHA, graphics.BLEND_FACTOR_ONE_MINUS_SRC_ALPHA)
 
     for k, v in pairs(self.views) do
         render_view(self,v)
@@ -123,26 +122,26 @@ function render_scene(self)
 end
 
 function render_shadows(self)
-    local w = render.get_render_target_width(self.light_buffer, render.BUFFER_DEPTH_BIT)
-    local h = render.get_render_target_height(self.light_buffer, render.BUFFER_DEPTH_BIT)
-     
+    local w = render.get_render_target_width(self.light_buffer, graphics.BUFFER_TYPE_DEPTH_BIT)
+    local h = render.get_render_target_height(self.light_buffer, graphics.BUFFER_TYPE_DEPTH_BIT)
+
     render.set_projection(self.light_projection)
     render.set_view(self.light_transform)
     render.set_viewport(0, 0, w, h)
 
     render.set_depth_mask(true)
-    render.set_depth_func(render.COMPARE_FUNC_LEQUAL)
-    render.enable_state(render.STATE_DEPTH_TEST)
-    render.disable_state(render.STATE_BLEND)
-    render.disable_state(render.STATE_CULL_FACE)
+    render.set_depth_func(graphics.COMPARE_FUNC_LEQUAL)
+    render.enable_state(graphics.STATE_DEPTH_TEST)
+    render.disable_state( graphics.STATE_BLEND)
+    render.disable_state(graphics.STATE_CULL_FACE)
 
     -- This is something I would like to do to fix the "peter panning" issue,
     -- but it doesn't really work. Need to flip the normal on the plane I guess.
     -- render.set_cull_face(render.FACE_FRONT)
-    -- render.enable_state(render.STATE_CULL_FACE)
+    -- render.enable_state(graphics.STATE_CULL_FACE)
 
-    render.set_render_target(self.light_buffer, { transient = {render.BUFFER_DEPTH_BIT} })
-    render.clear({[render.BUFFER_COLOR_BIT] = vmath.vector4(0,0,0,1), [render.BUFFER_DEPTH_BIT] = 1})
+    render.set_render_target(self.light_buffer, { transient = {graphics.BUFFER_TYPE_DEPTH_BIT} })
+    render.clear({[graphics.BUFFER_TYPE_COLOR0_BIT] = vmath.vector4(0,0,0,1), [graphics.BUFFER_TYPE_DEPTH_BIT] = 1})
     render.enable_material("shadow")
     render.draw(self.model_pred)
     render.draw(self.model_pred2)

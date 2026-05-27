@@ -13,7 +13,7 @@ end
 
 -- Calculates a view matrix from euler degrees
 local function get_matrix_from_rot_zoom(quat,zoom)
-	local mat = vmath.matrix4_from_quat(quat)
+	local mat = vmath.matrix4_quat(quat)
 	return translate_matrix(mat,vmath.vector3(0,0,-zoom))
 end
 

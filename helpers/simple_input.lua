@@ -68,8 +68,8 @@ function M.unregister(node_or_string)
 end
 
 local function shake(node, initial_scale)
-	gui.cancel_animation(node, "scale.x")
-	gui.cancel_animation(node, "scale.y")
+	gui.cancel_animations(node, "scale.x")
+	gui.cancel_animations(node, "scale.y")
 	gui.set_scale(node, initial_scale)
 	local scale = gui.get_scale(node)
 	gui.set_scale(node, scale * 1.2)
